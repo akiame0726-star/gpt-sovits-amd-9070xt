@@ -58,6 +58,29 @@ os.environ.setdefault("MIOPEN_USER_DB_PATH", r"D:\ai\miopen_db")
 os.environ.setdefault("MIOPEN_CUSTOM_CACHE_DIR", r"D:\ai\miopen_db")
 ```
 
+## This is not RX 9070 XT-specific
+
+`MIOPEN_FIND_MODE` belongs to MIOpen, not to a card. Per the upstream docs:
+
+| Value | Meaning |
+|---|---|
+| `NORMAL` / 1 | full find, benchmarks all solvers |
+| `FAST` / 2 | use FindDb, otherwise fall back immediately |
+| `HYBRID` / 3 | FindDb hit, else full find |
+| `DYNAMIC_HYBRID` / 5 | **the default**, skips non-dynamic kernels |
+
+Any AMD GPU that goes through MIOpen can set it — RDNA2, RDNA3, RDNA4 alike. ComfyUI sets it unconditionally for every AMD device in [#10448](https://github.com/Comfy-Org/ComfyUI/pull/10448), with no arch check:
+
+```python
+if is_amd():
+    if os.getenv('MIOPEN_FIND_MODE') is None:
+        os.environ['MIOPEN_FIND_MODE'] = "FAST"
+```
+
+**How much you gain depends on whether find caching is broken on your card too.** This machine is gfx1201; the same symptom is reported on gfx1100 (RDNA3) in TheRock#7958, so it is not unique to the new architecture. But the multiplier is unknown until you run `benchmark.py` twice on your own hardware — it could be 15×, it could be marginal.
+
+**The cost**: FAST skips the exhaustive search, so it can pick a suboptimal kernel; steady-state throughput may be slightly worse than the best solver would have been. On this machine there is no trade-off to weigh — the default mode takes 15 s per sentence and is simply unusable. If your card is already fast enough on the default, do not rush to change it.
+
 ## Reproduce
 
 ```powershell

@@ -65,6 +65,29 @@ os.environ.setdefault("MIOPEN_CUSTOM_CACHE_DIR", r"D:\ai\miopen_db")
 
 必须在 `import torch` 之前设置。
 
+## 这不是 9070 XT 专属
+
+`MIOPEN_FIND_MODE` 是 MIOpen 自己的环境变量，不挑型号。官方文档里的取值：
+
+| 值 | 含义 |
+|---|---|
+| `NORMAL` / 1 | 全量搜索，benchmark 所有 solver |
+| `FAST` / 2 | 用 FindDb 命中，没有就立即回退 |
+| `HYBRID` / 3 | 命中就用，没命中才全量搜索 |
+| `DYNAMIC_HYBRID` / 5 | **默认值**，跳过非动态 kernel |
+
+任何走 MIOpen 的 AMD 卡都能设，RDNA2 / 3 / 4 都行。ComfyUI 甚至在 [#10448](https://github.com/Comfy-Org/ComfyUI/pull/10448) 里直接对所有 AMD 卡无条件设成 FAST，没做型号判断：
+
+```python
+if is_amd():
+    if os.getenv('MIOPEN_FIND_MODE') is None:
+        os.environ['MIOPEN_FIND_MODE'] = "FAST"
+```
+
+**收益大小取决于那张卡上 find 缓存是不是也失效。** 本文这台是 gfx1201；同一个毛病在 gfx1100（RDNA3）上也有报告（TheRock#7958），所以不是新架构独有的。但具体快多少，只有拿 `benchmark.py` 在你自己卡上跑两组才知道——可能 15 倍，也可能只是小幅改善。
+
+**代价**：FAST 跳过穷举，可能选到次优 kernel，稳态性能理论上不如全量搜索找到的最优解。在这台机器上这个权衡没有讨论余地——默认模式一句 15 秒，根本不能用。如果你的卡上默认模式已经够快，就别急着改。
+
 ## 复现
 
 ```powershell
