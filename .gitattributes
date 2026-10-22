@@ -1,0 +1,3 @@
+# Windows 上 git 默认会把 LF 转成 CRLF，推上去的 README 会变成整篇改动。
+* text=auto eol=lf
+*.wav binary
